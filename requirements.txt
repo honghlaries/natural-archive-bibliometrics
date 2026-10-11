@@ -1,0 +1,10 @@
+# Python 依赖（计算段）
+# 实测环境：Python 3.12 + pandas 3.0.1
+pandas>=2.0
+numpy>=1.24
+openpyxl>=3.1
+python-docx>=1.1
+
+# 绘图段需单独环境（matplotlib 不在同一解释器时）
+# 实测：Python 3.14 + matplotlib 3.11.2
+# matplotlib>=3.7

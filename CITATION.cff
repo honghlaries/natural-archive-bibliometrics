@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use this dataset or code, please cite both the manuscript and this archive."
+type: software
+title: >-
+  Analysis code for: Uneven evidence for a shared planet, sampling and
+  publication are coupled worldwide
+authors:
+  - family-names: Fan
+    given-names: Lingli
+    affiliation: "Xiamen University"
+  - family-names: Lei
+    given-names: Yiming
+    affiliation: "Xiamen University"
+  - family-names: Chen
+    given-names: Yufei
+    affiliation: "Xiamen University"
+  - family-names: Huang
+    given-names: Qian
+    affiliation: "University of Mainz"
+  - family-names: Jia
+    given-names: Hui
+    affiliation: "Jiangsu University"
+  - family-names: Jiang
+    given-names: Shan
+    affiliation: "East China Normal University"
+  - family-names: Liu
+    given-names: Jingchun
+    affiliation: "Xiamen University"
+  - family-names: Lu
+    given-names: Haoliang
+    orcid: "https://orcid.org/0000-0003-0720-3137"
+    affiliation: "Xiamen University"
+  - family-names: Yan
+    given-names: Chongling
+    affiliation: "Xiamen University"
+  - family-names: Hong
+    given-names: Hualong
+    orcid: "https://orcid.org/0000-0003-4284-8096"
+    affiliation: "Xiamen University"
+license: MIT
+repository-code: "https://github.com/honghlaries/natural-archive-bibliometrics"
+version: "1.0.0"
+date-released: "2026-10-11"
+keywords:
+  - palaeoenvironmental archives
+  - bibliometrics
+  - research inequality
+  - sampling capacity
+  - Sustainable Development Goals

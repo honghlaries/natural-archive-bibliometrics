@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# 中间产物（脚本可重新生成）
+script/_derived/
+
+# 系统
+.DS_Store
+Thumbs.db
+~$*
+
+# 大文件请用 Git LFS 或改由 Zenodo 分发
+*.zip
+*.tar.gz
+
+# 渲染产物（由 plot_*.py 生成）
+script/*.png
+script/*.pdf
