@@ -1,7 +1,9 @@
 # =============================================================================
 # fig1_wedge.R — Figure 1d/e: sampling-publication wedge by archive class
-# 对应原脚本：scripts/34_archive_stratified_inequality.R
+# 对应原脚本：scripts/34_archive_stratified_inequality.R（t38 块，口径逐行一致）
 # 产出：script/_derived/fig1_wedge.csv
+#
+# 口径：采样侧权重 w = 1/n（archive_mid 多标签分摊）；发表侧 w * frac；宇宙 = 195 国名册
 # =============================================================================
 local({
   a <- commandArgs(trailingOnly = FALSE)
@@ -20,38 +22,32 @@ local({
 })
 source(file.path(HERE, '00_load.R'))
 
+source(file.path(HERE, '_core.R'))
 OUT <- file.path(HERE, '_derived'); dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
-d   <- load_corpus()
-fr  <- load_fractional() %>% filter(record_id %in% d$record_id)
-ss  <- load_sampling()   %>% filter(record_id %in% d$record_id)
-ros <- load_roster()
 
-UNIV <- align_universe(c(ss$canon, fr$canon), ros$canon)
-cat(sprintf('  universe: %d (roster %d + extra %d)\n',
-            length(UNIV), length(unique(ros$canon)), length(UNIV) - length(unique(ros$canon))))
+# 保留 n>=100 的类型（与权威脚本一致）
+n_by_type <- rec %>% group_by(archive_mid) %>% summarise(n_rec = n_distinct(record_id), .groups = 'drop')
+KEEP <- n_by_type %>% filter(n_rec >= 100, archive_mid != 'Unclassified') %>% pull(archive_mid)
+cat(sprintf('  archive_mid kept (n>=100): %d\n', length(KEEP)))
 
-vec_of <- function(dd, wcol = NULL) {
-  v <- numeric(length(UNIV)); names(v) <- UNIV
-  tb <- if (is.null(wcol)) table(dd$canon) else tapply(dd[[wcol]], dd$canon, sum)
-  v[names(tb)] <- as.numeric(tb)
-  v
+wedge_for <- function(tp) {
+  s <- rec_ss %>% filter(archive_mid == tp) %>% group_by(canon) %>% summarise(v = sum(w), .groups = 'drop')
+  p <- rec_fr %>% filter(archive_mid == tp) %>% group_by(canon) %>% summarise(v = sum(w), .groups = 'drop')
+  ts <- sum(s$v); tpt <- sum(p$v)
+  full_join(s %>% transmute(canon, ss = v / ts),
+            p %>% transmute(canon, pp = v / tpt), by = 'canon') %>%
+    mutate(ss = replace_na(ss, 0), pp = replace_na(pp, 0), d = ss - pp)
 }
 
-vc  <- d %>% count(jev_archive_mid, name = 'n') %>% arrange(desc(n))
-KEEP <- vc$jev_archive_mid[vc$n >= 100 & vc$jev_archive_mid != 'Unclassified']
-rows <- list()
-for (tp in KEEP) {
-  ids <- d$record_id[d$jev_archive_mid == tp]
-  xs  <- vec_of(ss %>% filter(record_id %in% ids))
-  xp  <- vec_of(fr %>% filter(record_id %in% ids), 'frac')
-  diff <- xs / sum(xs) - xp / sum(xp)
-  rows[[tp]] <- tibble(archive_mid = tp, n_records = length(ids),
-    n_countries_sampling = sum(xs > 0), median_share_diff = round(median(diff), 4),
-    gini_sampling = round(gini(xs), 4), gini_publication = round(gini(xp), 4))
-}
+rows <- lapply(KEEP, function(tp) {
+  wd <- wedge_for(tp)
+  wt <- suppressWarnings(wilcox.test(wd$d, alternative = 'greater', exact = FALSE))
+  st <- binom.test(sum(wd$d > 0), sum(wd$d != 0), 0.5, alternative = 'greater')
+  tibble(archive_mid = tp, median_share_diff = round(median(wd$d), 4),
+         mean_share_diff = round(mean(wd$d), 4),
+         wilcoxon_p = signif(wt$p.value, 3), sign_test_p = signif(st$p.value, 3))
+})
 out <- bind_rows(rows) %>% arrange(desc(median_share_diff))
-print(as.data.frame(out))
-cat(sprintf('\n  sampling Gini range: %.4f - %.4f\n', min(out$gini_sampling), max(out$gini_sampling)))
-cat(sprintf('  sampling countries : %d - %d\n', min(out$n_countries_sampling), max(out$n_countries_sampling)))
+print(as.data.frame(out), row.names = FALSE)
 write_csv(out, file.path(OUT, 'fig1_wedge.csv'))
 cat('\nsaved _derived/fig1_wedge.csv\n')
