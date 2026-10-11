@@ -31,32 +31,32 @@ The loader searches `PAPER_DATA_DIR`, `./data/`, `../data/` and the script direc
 
 ## Requirements
 
-| Purpose | Interpreter |
+**R** carries the analysis and every figure except the Sankey; **Python** is used only for the Sankey.
+
+| Purpose | Environment |
 |---|---|
-| pandas computation | Python 3.12 (pandas 3.0.1) |
-| matplotlib figures | Python 3.14 (matplotlib 3.11.2) |
-| R statistics | R 4.5.0 |
+| Analysis and figures | **R 4.5.0** (dplyr, tidyr, readr, readxl, jsonlite, ggplot2) |
+| Sankey figure | Python 3.14 + matplotlib 3.11.2 |
 
-    pip install -r requirements.txt
+```r
+install.packages(c('dplyr','tidyr','readr','readxl','jsonlite','ggplot2'))
+```
 
-**Two-stage note.** pandas and matplotlib were not installed in the same interpreter in the
-development environment, so figure scripts write a CSV into `script/_derived/` and a separate
-`plot_*.py` renders it. That directory is git-ignored.
 
 ---
 
 ## Scripts
 
-| Script | Reproduces |
-|---|---|
-| `00_load.py` | Shared loader: country-name canon, Gini, named-vector semantics |
-| `fig1a_growth.py` + `plot_fig1a_growth.py` | Fig. 1a/b — annual output and the four developmental periods |
-| `fig1_geography.py` | Fig. 1a-c — nine-class country typology, concentration, continental shares |
-| `fig1_wedge.py` | Fig. 1d,e — sampling-publication wedge by archive class |
-| `fig2_scaling.py` | Fig. 2 — income groups and scaling |
-| `fig3_network.py` | Fig. 3a — five-layer knowledge network and SDG attribution |
-| `plot_fig3b_sdg_share.py` | Fig. 3b — SDG flow by country tier (plot stage) |
-| `main_tests.R` | Main tests — marine vs lake sediment, polar ice core vs tree ring |
+| Script | Language | Reproduces |
+|---|---|---|
+| `00_load.R` | R | Shared loader: country-name canon, Gini, corpus and sampling readers |
+| `fig1a_growth.R` | R | Fig. 1a/b — annual output and the four developmental periods |
+| `fig1_geography.R` | R | Fig. 1a-c — nine-class typology, concentration, continental shares |
+| `fig1_wedge.R` | R | Fig. 1d,e — sampling-publication wedge by archive class |
+| `fig2_scaling.R` | R | Fig. 2 — income groups and scaling |
+| `fig3_network.R` | R | Fig. 3a — five-layer network flows (data preparation) |
+| `plot_fig3a_sankey.py` | **Python** | Sankey rendering (the one figure not drawn in R) |
+| `main_tests.R` | R | Main tests — marine vs lake sediment, polar ice core vs tree ring |
 
 Panel assembly (compositing sub-panels into the published figures) is **not** included.
 
@@ -64,19 +64,20 @@ Panel assembly (compositing sub-panels into the published figures) is **not** in
 
 ## Usage
 
-    # Fig. 1a/b
-    python script/fig1a_growth.py           # writes script/_derived/fig1a_growth.csv
-    python script/plot_fig1a_growth.py      # renders the figure
+```bash
+# Analysis and figures (R)
+Rscript script/fig1a_growth.R
+Rscript script/fig1_geography.R
+Rscript script/fig1_wedge.R
+Rscript script/fig2_scaling.R
+Rscript script/fig3_network.R
 
-    # Remaining figures (computation stage)
-    python script/fig1_geography.py
-    python script/fig1_wedge.py
-    python script/fig2_scaling.py
-    python script/fig3_network.py
-    python script/plot_fig3b_sdg_share.py   # needs matplotlib
+# Main tests (R)
+Rscript script/main_tests.R
 
-    # Main tests
-    Rscript script/main_tests.R
+# Sankey figure (Python, the only non-R figure)
+python script/plot_fig3a_sankey.py
+```
 
 ---
 
@@ -86,9 +87,9 @@ Every script runs standalone and reproduces the published numbers:
 
 | Script | Key values |
 |---|---|
-| `fig1a_growth.py` | Periods 2,489 / 5,685 / 8,471 / 15,319; 26 articles in 1980; 1,857.8 per year over 2021-2025; 1,181 records outside the window |
-| `fig1_geography.py` | Publication Gini 0.910, sampling Gini 0.847; high-high share 89.11% of publications and 81.29% of sampling; ten largest producers from the United States (5,657) to the Russian Federation (861) |
-| `fig3_network.py` | SDG 13 = 60.34%, 15 = 13.14%, 14 = 12.17%, 6 = 10.25%; top four = 95.90% |
+| `fig1a_growth.R` | Periods 2,489 / 5,685 / 8,471 / 15,319; 26 articles in 1980; 1,857.8 per year over 2021-2025; 1,181 records outside the window |
+| `fig1_geography.R` | Publication Gini 0.910, sampling Gini 0.847; high-high share 89.11% of publications and 81.29% of sampling; ten largest producers from the United States (5,657) to the Russian Federation (861) |
+| `fig3_network.R` | SDG 13 = 60.34%, 15 = 13.14%, 14 = 12.17%, 6 = 10.25%; top four = 95.90% |
 | `main_tests.R` | H1 = +0.0190, H2 = +0.0690 |
 
 ---
