@@ -1,9 +1,12 @@
 cff-version: 1.2.0
-message: "If you use this dataset or code, please cite both the manuscript and this archive."
+message: "If you use this code, please cite both the manuscript and this archive."
 type: software
 title: >-
   Analysis code for: Uneven evidence for a shared planet, sampling and
   publication are coupled worldwide
+abstract: >-
+  R (main analysis) and Python (Sankey diagram) code reproducing every figure,
+  table and reported value of the paper from the archived dataset.
 authors:
   - family-names: Fan
     given-names: Lingli
@@ -39,8 +42,8 @@ authors:
     affiliation: "Xiamen University"
 license: MIT
 repository-code: "https://github.com/honghlaries/natural-archive-bibliometrics"
-version: "1.0.0"
-date-released: "2026-10-11"
+version: "2.0.0"
+date-released: "2026-10-27"
 keywords:
   - palaeoenvironmental archives
   - bibliometrics

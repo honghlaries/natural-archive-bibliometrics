@@ -1,61 +1,147 @@
 # -*- coding: utf-8 -*-
-'''fig3b_sdg_share.py — 图 3b：各 SDG 流量来自 high-high 国家的份额。
+"""plot_fig3a_sankey.py — render Figure 3a from the R-computed Sankey data.
 
-对应原脚本：scripts/162_fig4_panel_b.py（v3 对齐版）
-输入：share/data/corpus_annotated.xlsx（国家档位由 share/data/sdg_by_country_tier.csv 提供）
-输出：仅子图 (b)，不含拼图（面板 a 的桑基由 scripts/sankey/ 渲染）
-'''
-import os, sys, csv
-import matplotlib; matplotlib.use('Agg')
+This is the only Python step in the reproduction package. All analysis and
+data preparation is done in R (fig3_network.R); this script only draws the
+five-layer flow diagram.
+
+Input : script/_derived/fig3a_sankey.json   (written by fig3_network.R)
+Output: script/_derived/fig3a_sankey.png and .pdf
+
+Usage:
+    python plot_fig3a_sankey.py [--data PATH] [--outdir PATH]
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+
+import numpy as np
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-for f in [r'C:\Windows\Fonts\times.ttf', r'C:\Windows\Fonts\timesbd.ttf']:
-    try: fm.fontManager.addfont(f)
-    except Exception: pass
-plt.rcParams['font.family'] = ['Times New Roman']
-plt.rcParams['pdf.fonttype'] = 42
-MM = 1/25.4
+PALETTE = ["#2E5A88", "#C4503F", "#3F7E44", "#7FA0DC", "#B8860B", "#6E2A5E",
+           "#8C8C8C", "#4E9A9A", "#A0522D", "#556B2F"]
 
-# 与桑基渲染器 scripts/sankey/_plot_sankey_map.py 完全一致的几何常量
-W_MM, L_MARG, R_MARG = 190.0, 24.0, 24.0
-XS0, XS4 = L_MARG, W_MM - R_MARG      # 24 -> 166 mm
-BAR_MM = XS4 - XS0
-FS = 8.5                              # 与桑基 FS 一致
-XLIM = 116.0
-H_SAN, H_PAN = 140.0, 140.0/1.618     # (a):(b) = 1:phi
 
-# 数据目录解析：环境变量 > ./data > ../data
-def _data_dir():
-    for c in [os.environ.get('PAPER_DATA_DIR', ''), os.path.join(HERE, 'data'),
-              os.path.join(os.path.dirname(HERE), 'data')]:
-        if c and os.path.exists(os.path.join(c, 'sdg_by_country_tier.csv')): return c
-    raise FileNotFoundError('sdg_by_country_tier.csv 未找到：请从 Zenodo 下载放入 data/')
-src = os.path.join(_data_dir(), 'sdg_by_country_tier.csv')
-rows = sorted([{'sdg': r['sdg'], 'flow': float(r['flow']), 'HH': float(r['HH_share_pct']),
-                'nonHH': float(r['nonHH_share_pct'])} for r in csv.DictReader(open(src, encoding='utf-8-sig'))],
-              key=lambda r: -r['flow'])
-names = {'SDG 13':'13 Climate','SDG 15':'15 Land life','SDG 14':'14 Ocean life','SDG 6':'6 Clean water',
-         'SDG 11':'11 Cities','SDG 9':'9 Industry','SDG 3':'3 Health','SDG 2':'2 Hunger',
-         'SDG 12':'12 Consumption','SDG 7':'7 Energy','SDG 17':'17 Partnerships'}
-HH_C, NH_C = '#6E2A5E', '#D8CDCB'
+def load_data(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)
 
-fig = plt.figure(figsize=(W_MM*MM, H_PAN*MM))
-ax_w = (XLIM/100.0)*BAR_MM/W_MM
-ax = fig.add_axes([XS0/W_MM, 0.085, ax_w, 0.885])
-ax.set_xlim(0, XLIM)
-n = len(rows)
-for i, r in enumerate(rows):
-    y = n - 1 - i
-    ax.barh(y, r['HH'], height=0.66, color=HH_C, edgecolor='white', linewidth=0.5, zorder=3)
-    ax.barh(y, r['nonHH'], left=r['HH'], height=0.66, color=NH_C, edgecolor='white', linewidth=0.5, zorder=3)
-    ax.text(-1.4, y, names.get(r['sdg'], r['sdg']), ha='right', va='center', fontsize=FS, color='#111111')
-    ax.text(101.6, y, '%.1f%%' % r['HH'], ha='left', va='center', fontsize=FS, color=HH_C)
-    ax.text(114.0, y, '%.0f' % r['flow'], ha='right', va='center', fontsize=FS, color='#555555')
-ax.set_ylim(-0.75, n - 0.25); ax.axis('off')
-ax.text(0, n + 0.30, 'Share of each goal flow originating in high-high countries', ha='left', va='bottom', fontsize=FS)
-ax.text(114.0, n + 0.30, 'flow', ha='right', va='bottom', fontsize=FS, color='#555555')
-fig.savefig(os.path.join(HERE, 'fig3b_sdg_share.png'), dpi=600)
-fig.savefig(os.path.join(HERE, 'fig3b_sdg_share.pdf'))
-print('saved fig3b_sdg_share.{png,pdf} | 条形 0-100%% -> %.0f-%.0f mm | (a):(b)=1:phi' % (XS0, XS4))
+
+def node_positions(spec):
+    """Return {layer_index: {node: (y0, y1)}} laid out top-to-bottom by order."""
+    pos = {}
+    for li, layer in enumerate(spec["nodes"]):
+        order = layer["order"]
+        flow = layer["flow"]
+        vals = np.array([float(flow.get(n, 0.0)) for n in order])
+        total = vals.sum() if vals.sum() > 0 else 1.0
+        gap = 0.012
+        usable = 1.0 - gap * (len(order) - 1)
+        heights = vals / total * usable
+        top = 1.0
+        d = {}
+        for name, h in zip(order, heights):
+            d[name] = (top - h, top)
+            top -= h + gap
+        pos[li] = d
+    return pos
+
+
+def ribbon(ax, x0, x1, y0a, y0b, y1a, y1b, color, alpha=0.55):
+    n = 40
+    t = np.linspace(0, 1, n)
+    xs = x0 + (x1 - x0) * t
+    ease = t * t * (3 - 2 * t)
+    lower = y0a + (y1a - y0a) * ease
+    upper = y0b + (y1b - y0b) * ease
+    verts = np.vstack([
+        np.column_stack([xs, upper]),
+        np.column_stack([xs[::-1], lower[::-1]]),
+    ])
+    verts = np.vstack([verts, verts[0]])
+    codes = [Path.MOVETO] + [Path.LINETO] * (len(verts) - 2) + [Path.CLOSEPOLY]
+    ax.add_patch(PathPatch(Path(verts, codes), facecolor=color, edgecolor="none",
+                           alpha=alpha, zorder=1))
+
+
+def render(spec, out_stem):
+    layers = spec["layers"]
+    pos = node_positions(spec)
+    n = len(layers)
+    x = np.linspace(0.0, 1.0, n)
+    bw = 0.055
+
+    fig, ax = plt.subplots(figsize=(11.5, 8.6))
+    # node bars and labels
+    for li, layer in enumerate(layers):
+        for name, (y0, y1) in pos[li].items():
+            ax.add_patch(plt.Rectangle((x[li] - bw / 2, y0), bw, y1 - y0,
+                                       facecolor="#4A4A4A", edgecolor="none", zorder=3))
+        ax.text(x[li], 1.045, layer, ha="center", va="bottom", fontsize=10.5, fontweight="bold")
+        for name in pos[li]:
+            y0, y1 = pos[li][name]
+            label = name
+            if len(label) > 26:
+                label = label[:24] + "…"
+            if li == n - 1:
+                ax.text(x[li] + bw / 2 + 0.012, (y0 + y1) / 2, label,
+                        ha="left", va="center", fontsize=7.4, color="#222222")
+            else:
+                ax.text(x[li] - bw / 2 - 0.012, (y0 + y1) / 2, label,
+                        ha="right", va="center", fontsize=7.4, color="#222222")
+
+    # links: stacked ribbons between adjacent layers
+    cursor0 = {li: {name: pos[li][name][1] for name in pos[li]} for li in range(n)}
+    cursor1 = {li: {name: pos[li][name][1] for name in pos[li]} for li in range(n)}
+    totals = {}
+    for link in spec["links"]:
+        totals[(int(link["layer"]), link["source"])] = totals.get((int(link["layer"]), link["source"]), 0.0) + float(link["flow"])
+        totals[(int(link["layer"]) + 1, link["target"])] = totals.get((int(link["layer"]) + 1, link["target"]), 0.0) + float(link["flow"])
+    for link in sorted(spec["links"], key=lambda z: -float(z["flow"])):
+        li = int(link["layer"]); src = link["source"]; tgt = link["target"]; fl = float(link["flow"])
+        h0 = pos[li][src][1] - pos[li][src][0]
+        h1 = pos[li + 1][tgt][1] - pos[li + 1][tgt][0]
+        f0 = fl / totals.get((li, src), fl)
+        f1 = fl / totals.get((li + 1, tgt), fl)
+        y0b = cursor0[li][src]; y0a = y0b - h0 * f0; cursor0[li][src] = y0a
+        y1b = cursor1[li + 1][tgt]; y1a = y1b - h1 * f1; cursor1[li + 1][tgt] = y1a
+        color = PALETTE[li % len(PALETTE)]
+        ribbon(ax, x[li] + bw / 2, x[li + 1] - bw / 2, y0a, y0b, y1a, y1b, color)
+
+    ax.set_xlim(-0.34, 1.18)
+    ax.set_ylim(-0.02, 1.10)
+    ax.axis("off")
+    ax.set_title("Five-layer knowledge network (29,379 records; countries split at 41,458 PPP int$)",
+                 fontsize=11, pad=18)
+    fig.tight_layout()
+    for ext in ("png", "pdf"):
+        fig.savefig(out_stem + "." + ext, dpi=600 if ext == "png" else None,
+                    bbox_inches="tight")
+    plt.close(fig)
+
+
+def main():
+    here = os.path.dirname(os.path.abspath(__file__))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data", default=os.path.join(here, "_derived", "fig3a_sankey.json"))
+    ap.add_argument("--outdir", default=os.path.join(here, "_derived"))
+    args = ap.parse_args()
+    if not os.path.exists(args.data):
+        sys.exit("Sankey data not found: %s\nRun fig3_network.R first." % args.data)
+    os.makedirs(args.outdir, exist_ok=True)
+    spec = load_data(args.data)
+    stem = os.path.join(args.outdir, "fig3a_sankey")
+    render(spec, stem)
+    print("wrote", stem + ".png / .pdf")
+
+
+if __name__ == "__main__":
+    main()

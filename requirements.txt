@@ -1,12 +1,12 @@
-# ---- R (analysis and all figures except the Sankey) ----
-# Developed with R 4.5.0
-dplyr
-tidyr
-readr
-readxl
-jsonlite
-ggplot2
+# Reproduction environment for share/script/
+# All analysis and figures except the Sankey are implemented in R.
 
+# ---- R (analysis and every figure/table except the Sankey) ----
+# Developed with R 4.5.0
+#   dplyr, tidyr, readr, readxl, jsonlite, tibble, stringr
+#   mgcv   (Tweedie GAM, Figure 2b and the gam_edf diagnostic)
+# fig3a Sankey JSON is produced by R; only the drawing step is Python.
 # ---- Python (Sankey figure only) ----
-# Developed with Python 3.14 + matplotlib 3.11.2
-matplotlib
+# Developed with Python 3.12+ and matplotlib >= 3.7
+matplotlib>=3.7
+numpy>=1.24
